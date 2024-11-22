@@ -10,7 +10,7 @@ const contextDataSchema = mongoose.Schema(
             type: Array,
             default: [{
                 role: 'system',
-                content: 'You are an helpful WhatsApp chatbot.'
+                content: "You are a trading assistant talking to a trader. Based on user's input, provide a pine script code which will be used for TradingView."
             }]
         },
         createdAt: {
