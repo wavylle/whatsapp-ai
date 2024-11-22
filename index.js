@@ -99,16 +99,17 @@ app.post("/incoming-messages", async (req, res) => {
   const getContext = await ContextDataDB.findOne({wa_id: body.WaId})
   let gptResponse = await runConversation(body.Body, getContext.context_data)
   const gptContext = {role: 'assistant', content: gptResponse}
+    
+  if(gptResponse) {
+        message = new MessagingResponse().message(gptResponse);
+  }
 
-    // Push new data to the context_data array
+  // Push new data to the context_data array
   const updateGptContext = await ContextDataDB.findOneAndUpdate(
       { wa_id: body.WaId },
       { $push: { context_data: gptContext } },
       { new: true }
   );
-    if(gptResponse) {
-        message = new MessagingResponse().message(gptResponse);
-    }
   } else {
     message = new MessagingResponse().message("Hey!");
   }
