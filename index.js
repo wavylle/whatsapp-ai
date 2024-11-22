@@ -302,7 +302,7 @@ app.get("/deleteallusers", async (request, response) => {
 // Get the port from environment variables or default to 3000
 const port = process.env.PORT || 3000;
 
-mongoose.connect(mongourl, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(mongourl)
 .then(async () => {
   // console.log("Connected to MongoDB");
   // const database = mongoclient.db(); // This will use the default database specified in the connection string
