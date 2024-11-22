@@ -26,7 +26,7 @@ async function runConversation(prompt) {
     messages: [
       {
         role: "system",
-        content: "You are a trading assistant talking to a trader. Based on user's input, provide a pine script code which will be used for TradingView. Just return with the code, nothing else."
+        content: "You are an assistant talking to a trader. Your job is to talk to the trader and when the trader asks for a Pine Script, you have to answer it. Just return with the code, nothing else. Only respond for what you've been asked."  
       },
       {
         role: "user",
