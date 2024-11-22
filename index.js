@@ -51,7 +51,9 @@ async function runConversation(prompt, contextData) {
     messages: messages
   });
   const responseMessage = response.choices[0].message.content;
-  return responseMessage;
+  console.log(responseMessage)
+  console.log("Sending response")
+  return {status: 200, message: responseMessage};
 }
 
 // Middleware to parse JSON bodies
@@ -98,10 +100,11 @@ app.post("/incoming-messages", async (req, res) => {
   console.log("Generating response")
   const getContext = await ContextDataDB.findOne({wa_id: body.WaId})
   let gptResponse = await runConversation(body.Body, getContext.context_data)
-  const gptContext = {role: 'assistant', content: gptResponse}
+  const gptContext = {role: 'assistant', content: gptResponse.message}
     
-  if(gptResponse) {
-        message = new MessagingResponse().message(gptResponse);
+  if(gptResponse.message) {
+        console.log("Sending response over whatsapp")
+        message = new MessagingResponse().message(gptResponse.message);
   }
 
   // Push new data to the context_data array
