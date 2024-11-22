@@ -80,16 +80,10 @@ app.post("/incoming-messages", async (req, res) => {
 
       console.log("Setting context")
       // const newContext = {role: 'user', content: body.Body}
-      const newContext = [
-        {
-          role: "system",
-          content: "You are a trading assistant talking to a trader. Based on user's input, provide a pine script code which will be used for TradingView."
-        },
-        {
+      const newContext = {
           role: "user",
           content: body.Body
         }
-      ]
 
       // Push new data to the context_data array
       console.log("Updating user")
