@@ -68,14 +68,17 @@ app.post("/incoming-messages", async (req, res) => {
   if (body.Body) {
 
     try {
+      console.log("Getting user")
       // Check if the user already exists
       let user = await ContextDataDB.findOne({ wa_id: body.WaId });
       
       // If user does not exist, create a new one
       if (!user) {
+          console.log("Creating user")
           user = await ContextDataDB.create({ wa_id: body.WaId });
       }
 
+      console.log("Setting context")
       // const newContext = {role: 'user', content: body.Body}
       const newContext = [
         {
@@ -89,6 +92,7 @@ app.post("/incoming-messages", async (req, res) => {
       ]
 
       // Push new data to the context_data array
+      console.log("Updating user")
       user = await ContextDataDB.findOneAndUpdate(
           { wa_id: body.WaId },
           { $push: { context_data: newContext } },
