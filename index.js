@@ -46,7 +46,7 @@ async function runConversation(prompt, contextData) {
   console.log("Running conversation")
   // Step 1: send the conversation and available functions to the model
   const messages = contextData
-
+  console.log("messages: ", messages)
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: messages
