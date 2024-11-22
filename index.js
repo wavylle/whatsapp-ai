@@ -1,36 +1,55 @@
 // Import required modules
-import express from "express";
-import dotenv from "dotenv";
-import bodyParser from "body-parser";
-import { OpenAI } from "openai";
-import mongoose from "mongoose";
-import session from "express-session";
-import { MongoClient } from "mongodb";
-import twilio from "twilio";
-import { MessagingResponse } from "twilio";
-import ContextDataDB from "./models/contextData.js"; // Ensure the file extension is included for local imports
-
+const express = require("express");
+const dotenv = require("dotenv");
+const bodyParser = require("body-parser");
+const OpenAI = require("openai");
+const mongoose = require("mongoose");
 // Initialize dotenv to load environment variables from .env file
 dotenv.config();
 
 const openai = new OpenAI(process.env.OPENAI_API_KEY);
+var session = require('express-session')
+const { MongoClient } = require('mongodb');
+
+// const MongoDBSessionStore = require("connect-mongodb-session");
 
 const accountSid = process.env.TWILIO_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
-const client = twilio(accountSid, authToken);
+const client = require("twilio")(accountSid, authToken);
 
-const mongourl = process.env.MONGODB_URL;
+const MessagingResponse = require("twilio").twiml.MessagingResponse;
+
+var mongourl = process.env.MONGODB_URL;
+// const mongoclient = new MongoClient(mongourl, { useNewUrlParser: true, useUnifiedTopology: true });
+// const mongoclient = new mongoose.connect(mongourl, { useNewUrlParser: true, useUnifiedTopology: true });
+
+const ContextDataDB = require("./models/contextData");
+
+// // Create a new MongoDBSessionStore
+// const MongoDBStore = MongoDBSessionStore(session);
+
+// // Initialize MongoDBStore with session options
+// const store = new MongoDBStore({
+//   uri: mongourl,
+//   collection: "sessions",
+// });
+
+// // Catch errors in MongoDBStore
+// store.on("error", function (error) {
+//   console.error("MongoDBStore Error:", error);
+// });
 
 // Create an instance of the Express application
 const app = express();
 
 async function runConversation(prompt, contextData) {
-  console.log("Running conversation");
-  const messages = contextData;
-  console.log("messages: ", messages);
+  console.log("Running conversation")
+  // Step 1: send the conversation and available functions to the model
+  const messages = contextData
+  console.log("messages: ", messages)
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
-    messages: messages,
+    messages: messages
   });
   const responseMessage = response.choices[0].message.content;
   return responseMessage;
@@ -42,56 +61,62 @@ app.use(bodyParser.urlencoded({ extended: false }));
 // Define the /incoming-messages endpoint
 app.post("/incoming-messages", async (req, res) => {
   const { body } = req;
-  console.log("Received: ", body.Body);
+  console.log("Recieved: ", body.Body)
 
   let message;
-
+  
   if (body.Body) {
+
     try {
-      console.log("Getting user");
+      console.log("Getting user")
       // Check if the user already exists
       let user = await ContextDataDB.findOne({ wa_id: body.WaId });
-
+      
       // If user does not exist, create a new one
       if (!user) {
-        console.log("Creating user");
-        user = await ContextDataDB.create({ wa_id: body.WaId });
+          console.log("Creating user")
+          user = await ContextDataDB.create({ wa_id: body.WaId });
       }
 
-      console.log("Setting context");
+      console.log("Setting context")
+      // const newContext = {role: 'user', content: body.Body}
       const newContext = {
-        role: "user",
-        content: body.Body,
-      };
+          role: "user",
+          content: body.Body
+        }
 
-      console.log("Updating user");
+      // Push new data to the context_data array
+      console.log("Updating user")
       user = await ContextDataDB.findOneAndUpdate(
-        { wa_id: body.WaId },
-        { $push: { context_data: newContext } },
-        { new: true }
+          { wa_id: body.WaId },
+          { $push: { context_data: newContext } },
+          { new: true }
       );
-    } catch (error) {
-      console.error("Error updating document:", error);
-    }
+  } catch (error) {
+      console.error('Error updating document:', error);
+  }
 
-    console.log("Generating response");
-    const getContext = await ContextDataDB.findOne({ wa_id: body.WaId });
-    let gptResponse = await runConversation(body.Body, getContext.context_data);
-    const gptContext = { role: "assistant", content: gptResponse };
+  console.log("Generating response")
+  const getContext = await ContextDataDB.findOne({wa_id: body.WaId})
+  let gptResponse = await runConversation(body.Body, getContext.context_data)
+  const gptContext = {role: 'assistant', content: gptResponse}
 
-    await ContextDataDB.findOneAndUpdate(
+    // Push new data to the context_data array
+  const updateGptContext = await ContextDataDB.findOneAndUpdate(
       { wa_id: body.WaId },
       { $push: { context_data: gptContext } },
       { new: true }
-    );
-    console.log("gptResponse: ", gptResponse);
-    message = new MessagingResponse().message(gptResponse);
+  );
+    console.log("gptResponse: ", gptResponse)
+    if(gptResponse) {
+        message = new MessagingResponse().message(gptResponse);
+    }
   } else {
     message = new MessagingResponse().message("Hey!");
   }
 
   res.set("Content-Type", "text/xml");
-  res.status(200).send(message.toString());
+  res.send(message.toString()).status(200);
 });
 
 app.get("/send-message", async (req, res) => {
@@ -104,34 +129,48 @@ app.get("/send-message", async (req, res) => {
     .then((message) => console.log(message.sid));
 
   res.send("Message sent.");
+  // .done();
 });
 
-app.get("/getallusers", async (req, res) => {
+app.get("/getallusers", async (request, response) => {
   const users = await ContextDataDB.find();
-  res.json(users);
+  response.json(users);
 });
 
-app.get("/deleteallusers", async (req, res) => {
+app.get("/deleteallusers", async (request, response) => {
   const users = await ContextDataDB.deleteMany({});
-  res.json(users);
+  response.json(users);
 });
 
-app.get("/", async (req, res) => {
-  res.send("Server is live");
+app.get("/", async (request, response) => {
+  response.send("Server is live")
 });
 
 // Get the port from environment variables or default to 3000
 const port = process.env.PORT || 3000;
 
-mongoose
-  .connect(mongourl)
-  .then(() => {
-    const server = app.listen(port, () => {
-      console.log("App is listening on port:", port);
-    });
-  })
-  .catch((error) => {
-    console.error("Error connecting to MongoDB:", error);
+mongoose.connect(mongourl)
+.then(async () => {
+  // console.log("Connected to MongoDB");
+  // const database = mongoclient.db(); // This will use the default database specified in the connection string
+
+  // // Check if the "CallTrials" collection exists
+  // const collections = await database.listCollections({ name: 'CallTrials' }).toArray();
+  // if (collections.length === 0) {
+  //   // If the collection doesn't exist, create it
+  //   await database.createCollection('CallTrials');
+  //   console.log("Created collection 'CallTrials'");
+  // } else {
+  //   console.log("Collection 'CallTrials' already exists");
+  // }
+
+  // Start your Express app after ensuring the collection is created
+  const server = app.listen(port, () => {
+    console.log("App is listening on port:", port);
   });
+})
+.catch((error) => {
+  console.error("Error connecting to MongoDB:", error);
+});
 
 export default app;
