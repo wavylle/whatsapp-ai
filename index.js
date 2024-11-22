@@ -25,12 +25,6 @@ var mongourl = process.env.MONGODB_URL;
 
 const ContextDataDB = require("./models/contextData");
 
-// Import the Todoist API wrapper for TypeScript
-const {TodoistApi} = require('@doist/todoist-api-typescript');
-
-// Initialize the Todoist API with the API key from environment variables
-const api = new TodoistApi(process.env.TODOIST_API_KEY);
-
 // Create a new MongoDBSessionStore
 const MongoDBStore = MongoDBSessionStore(session);
 
@@ -48,182 +42,20 @@ store.on("error", function (error) {
 // Create an instance of the Express application
 const app = express();
 
-// Function to get all projects of the authenticated user
-async function getUserProjects(){
-  try {
-      // Fetch and return the projects from Todoist
-      const projects = await api.getProjects();
-      return projects;
-  } catch (error) {
-      // Log any errors that occur during the fetch
-      console.error('error', error);
-  }
-}
-
-// Function to get tasks of a specific project
-async function getTasks(projectId){
-  try {
-      // Fetch and return tasks of a given project
-      const tasks = await api.getTasks({projectId});
-      return tasks;
-  } catch (error) {
-      // Log any errors that occur during the fetch
-      console.error('error', error);
-  }
-}
-
-// Function to create a new task in a specified project
-async function createTask(projectId, taskContent){
-  try {
-      // Add a new task with the given content to the specified project
-      const newTask = await api.addTask({
-          content: taskContent, projectId
-      });
-      return newTask;
-  } catch (error) {
-      // Log any errors that occur during the creation of the task
-      console.error('error', error);
-  }
-}
-
-async function getTodoistTasks() {
-  // Fetch all user projects
-  const projects = await getUserProjects();
-
-  // Fetch tasks of the first project
-  const tasks = await getTasks(projects[0].id);
-  console.log(tasks)
-
-  let tasksArray = []
-  for(let i = 0; i < tasks.length; i++) {
-    tasksArray.push(tasks[i]["content"])
-  }
-
-  console.log("tasksArray: ", tasksArray)
-
-  return JSON.stringify({tasks: tasksArray})
-}
-
-async function createTodoistTask(taskName) {
-  // Fetch all user projects
-  const projects = await getUserProjects();
-
-  // Create a new task in the first project and log it
-  const newTask = await createTask(projects[0].id, taskName);
-  console.log(newTask);
-
-  return `Task: ${taskName} is successfully created.`
-}
-
-// Example dummy function hard coded to return the same weather
-// In production, this could be your backend API or an external API
-function getCurrentWeather(location, unit = "fahrenheit") {
-  if (location.toLowerCase().includes("tokyo")) {
-    return JSON.stringify({ location: "Tokyo", temperature: "10", unit: "celsius" });
-  } else if (location.toLowerCase().includes("san francisco")) {
-    return JSON.stringify({ location: "San Francisco", temperature: "72", unit: "fahrenheit" });
-  } else if (location.toLowerCase().includes("paris")) {
-    return JSON.stringify({ location: "Paris", temperature: "22", unit: "fahrenheit" });
-  } else {
-    return JSON.stringify({ location, temperature: "unknown" });
-  }
-}
-
 async function runConversation(prompt, contextData) {
   // Step 1: send the conversation and available functions to the model
   const messages = contextData
 
-  const tools = [
-    {
-      type: "function",
-      function: {
-        name: "get_all_tasks",
-        description: "Gets all Todoist tasks.",
-      },
-    },
-    {
-      type: "function",
-      function: {
-        name: "create_task",
-        description: "Creates a new Todoist task.",
-        parameters: {
-          type: "object",
-          properties: {
-            taskName: {
-              type: "string",
-              description: "Name of the task to be created."
-            }
-          },
-          required: ["taskName"]
-        }
-      },
-    },
-  ];
-
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
-    messages: messages,
-    tools: tools,
-    tool_choice: "auto", // auto is default, but we'll be explicit
+    messages: messages
   });
-  const responseMessage = response.choices[0].message;
-
-//   console.log("responseMessage: ", responseMessage)
-
-  // Step 2: check if the model wanted to call a function
-  const toolCalls = responseMessage.tool_calls;
-  if (responseMessage.tool_calls) {
-    // Step 3: call the function
-    // Note: the JSON response may not always be valid; be sure to handle errors
-    const availableFunctions = {
-      get_all_tasks: getTodoistTasks,
-      create_task: createTodoistTask,
-    }; // only one function in this example, but you can have multiple
-    messages.push(responseMessage); // extend conversation with assistant's reply
-    for (const toolCall of toolCalls) {
-      const functionName = toolCall.function.name;
-      const functionToCall = availableFunctions[functionName];
-      const functionArgs = JSON.parse(toolCall.function.arguments);
-      let functionResponse;
-      if(functionName == "create_task") {
-        functionResponse = await functionToCall(functionArgs.taskName);
-      } else {
-        functionResponse = await functionToCall();
-      }
-      messages.push({
-        tool_call_id: toolCall.id,
-        role: "tool",
-        name: functionName,
-        content: functionResponse,
-      }); // extend conversation with function response
-    }
-    console.log(messages)
-    const secondResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: messages,
-    }); // get a new response from the model where it can see the function response
-    return secondResponse.choices[0].message.content;
-  } else if (responseMessage.content) {
-    return responseMessage.content
-  }
+  const responseMessage = response.choices[0].message.content;
+  return responseMessage;
 }
-
-async function gptEngine(prompt) {
-  const completion = await openai.chat.completions.create({
-    messages: [{ role: "system", content: prompt }],
-    model: "gpt-3.5-turbo",
-  });
-
-  return completion.choices[0]
-}
-
 
 // Middleware to parse JSON bodies
 app.use(bodyParser.urlencoded({ extended: false }));
-
-const goodBoyUrl =
-  "https://images.unsplash.com/photo-1518717758536-85ae29035b6d?" +
-  "ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=1350&q=80";
 
 // Define the /incoming-messages endpoint
 app.post("/incoming-messages", async (req, res) => {
@@ -242,7 +74,17 @@ app.post("/incoming-messages", async (req, res) => {
           user = await ContextDataDB.create({ wa_id: body.WaId });
       }
 
-      const newContext = {role: 'user', content: body.Body}
+      // const newContext = {role: 'user', content: body.Body}
+      const newContext = [
+        {
+          role: "system",
+          content: "You are a trading assistant talking to a trader. Based on user's input, provide a pine script code which will be used for TradingView."
+        },
+        {
+          role: "user",
+          content: body.Body
+        }
+      ]
 
       // Push new data to the context_data array
       user = await ContextDataDB.findOneAndUpdate(
@@ -297,6 +139,10 @@ app.get("/getallusers", async (request, response) => {
 app.get("/deleteallusers", async (request, response) => {
   const users = await ContextDataDB.deleteMany({});
   response.json(users);
+});
+
+app.get("/", async (request, response) => {
+  response.send("Server is live")
 });
 
 // Get the port from environment variables or default to 3000
