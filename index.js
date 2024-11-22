@@ -11,7 +11,7 @@ const openai = new OpenAI(process.env.OPENAI_API_KEY);
 var session = require('express-session')
 const { MongoClient } = require('mongodb');
 
-const MongoDBSessionStore = require("connect-mongodb-session");
+// const MongoDBSessionStore = require("connect-mongodb-session");
 
 const accountSid = process.env.TWILIO_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -25,19 +25,19 @@ var mongourl = process.env.MONGODB_URL;
 
 const ContextDataDB = require("./models/contextData");
 
-// Create a new MongoDBSessionStore
-const MongoDBStore = MongoDBSessionStore(session);
+// // Create a new MongoDBSessionStore
+// const MongoDBStore = MongoDBSessionStore(session);
 
-// Initialize MongoDBStore with session options
-const store = new MongoDBStore({
-  uri: mongourl,
-  collection: "sessions",
-});
+// // Initialize MongoDBStore with session options
+// const store = new MongoDBStore({
+//   uri: mongourl,
+//   collection: "sessions",
+// });
 
-// Catch errors in MongoDBStore
-store.on("error", function (error) {
-  console.error("MongoDBStore Error:", error);
-});
+// // Catch errors in MongoDBStore
+// store.on("error", function (error) {
+//   console.error("MongoDBStore Error:", error);
+// });
 
 // Create an instance of the Express application
 const app = express();
