@@ -106,7 +106,6 @@ app.post("/incoming-messages", async (req, res) => {
       { $push: { context_data: gptContext } },
       { new: true }
   );
-    console.log("gptResponse: ", gptResponse)
     if(gptResponse) {
         message = new MessagingResponse().message(gptResponse);
     }
