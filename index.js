@@ -43,6 +43,7 @@ const ContextDataDB = require("./models/contextData");
 const app = express();
 
 async function runConversation(prompt, contextData) {
+  console.log("Running conversation")
   // Step 1: send the conversation and available functions to the model
   const messages = contextData
 
@@ -60,6 +61,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 // Define the /incoming-messages endpoint
 app.post("/incoming-messages", async (req, res) => {
   const { body } = req;
+  console.log("Recieved: ", body.Body)
 
   let message;
   
@@ -96,6 +98,7 @@ app.post("/incoming-messages", async (req, res) => {
       console.error('Error updating document:', error);
   }
 
+  console.log("Generating response")
   const getContext = await ContextDataDB.findOne({wa_id: body.WaId})
   let gptResponse = await runConversation(body.Body, getContext.context_data)
   const gptContext = {role: 'assistant', content: gptResponse}
